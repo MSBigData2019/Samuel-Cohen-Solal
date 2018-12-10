@@ -1,123 +1,83 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import requests\n",
-    "from bs4 import BeautifulSoup\n",
-    "import time\n",
-    "import json\n",
-    "import pandas as pd\n",
-    "\n",
-    "\n",
-    "def _handle_request_result_and_build_soup(request_result):\n",
-    "    if request_result.status_code == 200:\n",
-    "        soup = BeautifulSoup(request_result.content,\"html.parser\")\n",
-    "    return soup\n",
-    "\n",
-    "def get_list_contributors(url):\n",
-    "    page = requests.get(url)\n",
-    "    soup = _handle_request_result_and_build_soup(page)\n",
-    "    rows = soup.find('table').find_all('tr')\n",
-    "    rows = rows[1:]\n",
-    "    contributors = []\n",
-    "    for row in rows:\n",
-    "        cols=row.find('td').text.split(' ')[0]\n",
-    "        contributors.append(cols)\n",
-    "    return contributors\n",
-    "\n",
-    "def _handle_request_result_and_build_json(response):\n",
-    "    if response.status_code == 200:\n",
-    "        json_tab = json.loads(response.content)\n",
-    "    return json_tab\n",
-    "\n",
-    "def get_sum_stars_per_owner(response):\n",
-    "    try:\n",
-    "        json_tab =_handle_request_result_and_build_json(response)\n",
-    "        d = dict(sorted([(json_tab[i]['name'], json_tab[i]['stargazers_count']) for i in range(len(json.loads(response.content)))]))\n",
-    "        df = pd.DataFrame(list(d.items()), columns=['Repository','Count stars'])  # or list(d.items()) in python 3\n",
-    "        return df['Count stars'].sum()\n",
-    "    except ValueError:\n",
-    "        return 0\n",
-    "\n",
-    "    \n",
-    "def get_info_repositories(owner):\n",
-    "    number_repos = 0\n",
-    "    number_stars = 0\n",
-    "    j = 1\n",
-    "    while True:\n",
-    "        api_token = '...'\n",
-    "        headers = {'Authorization': 'token {}'.format(api_token)}\n",
-    "        api_url_base = f\"https://api.github.com/users/{owner}/repos?page={j}&per_page=100\"\n",
-    "        response = requests.get(api_url_base, headers=headers)\n",
-    "        json_tab =_handle_request_result_and_build_json(response)\n",
-    "        if len(json_tab) != 0:\n",
-    "            number_repos += len(json_tab)\n",
-    "            number_stars += get_sum_stars_per_owner(response)\n",
-    "            j += 1\n",
-    "        else:\n",
-    "            break\n",
-    "    if number_repos == 0:\n",
-    "        return(0,0)\n",
-    "    else:\n",
-    "        return (round(number_stars/number_repos*100)/100, number_repos)\n",
-    "\n",
-    "def get_dataframe_users_averaged_stars(owners):\n",
-    "    average_stars = []\n",
-    "    names = []\n",
-    "    repositories = []\n",
-    "    for owner in owners:\n",
-    "        print(owner)\n",
-    "        star, repository = get_info_repositories(owner)\n",
-    "        names.append(owner)\n",
-    "        repositories.append(repository)\n",
-    "        average_stars.append(star)\n",
-    "    df = pd.DataFrame({\"Name\": names,\n",
-    "                       \"# Repositories\": repositories,\n",
-    "                        \"Average stars score\": average_stars})\n",
-    "    return df.sort_values(by=['Average stars score'], ascending=False)\n",
-    "\n",
-    "\n",
-    "if __name__ == '__main__':\n",
-    "\n",
-    "    start = time.time()\n",
-    "\n",
-    "    # Contributors information\n",
-    "    url = \"https://gist.github.com/paulmillr/2657075\"\n",
-    "\n",
-    "    contributors = get_list_contributors(url)\n",
-    "    df = get_dataframe_users_averaged_stars(contributors)\n",
-    "\n",
-    "    end = time.time()\n",
-    "\n",
-    "    print(\"Execution time: \" + str(round((end - start)/60)) + \" min\")\n",
-    "\n",
-    "    df.to_csv(\"Dataframe_github_256_serial.csv\")"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.7.0"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+import requests
+from bs4 import BeautifulSoup
+import time
+import json
+import pandas as pd
+
+def _handle_request_result_and_build_soup(request_result):
+    if request_result.status_code == 200:
+        soup = BeautifulSoup(request_result.content,"html.parser")
+    return soup
+
+def get_list_contributors(url):
+    page = requests.get(url)
+    soup = _handle_request_result_and_build_soup(page)
+    rows = soup.find('table').find_all('tr')
+    rows = rows[1:]
+    contributors = []
+    for row in rows:
+        cols=row.find('td').text.split(' ')[0]
+        contributors.append(cols)
+    return contributors
+
+def _handle_request_result_and_build_json(response):
+    if response.status_code == 200:
+        json_tab = json.loads(response.content)
+    return json_tab
+
+def get_sum_stars_per_owner(response):
+    try:
+        json_tab =_handle_request_result_and_build_json(response)
+        d = dict(sorted([(json_tab[i]['name'], json_tab[i]['stargazers_count']) for i in range(len(json.loads(response.content)))]))
+        df = pd.DataFrame(list(d.items()), columns=['Repository','Count stars'])
+        return df['Count stars'].sum()
+    except ValueError:
+       return 0
+
+def get_info_repositories(owner):
+    number_repos = 0
+    number_stars = 0
+    j = 1
+    while True:
+        api_token = '...'
+        headers = {'Authorization': 'token {}'.format(api_token)}
+        api_url_base = "https://api.github.com/users/{owner}/repos?page={j}&per_page=100"
+        response = requests.get(api_url_base, headers=headers)
+        json_tab =_handle_request_result_and_build_json(response)
+        if len(json_tab) != 0:
+            number_repos += len(json_tab)
+            number_stars += get_sum_stars_per_owner(response)
+            j += 1
+        else:
+            break
+    if number_repos == 0:
+        return(0,0)
+    else:
+        return (round(number_stars/number_repos*100)/100, number_repos)
+
+def get_dataframe_users_averaged_stars(owners):
+    average_stars = []
+    names = []
+    repositories = []
+    for owner in owners:
+        print(owner)
+        star, repository = get_info_repositories(owner)
+        names.append(owner)
+        repositories.append(repository)
+        average_stars.append(star)
+    df = pd.DataFrame({\"Name\": names,
+                       \"# Repositories\": repositories,
+                        \"Average stars score\": average_stars})
+    return df.sort_values(by=['Average stars score'], ascending=False)
+
+if __name__ == '__main__':
+
+    start = time.time()
+# Contributors information
+    url = "https://gist.github.com/paulmillr/2657075"
+
+    contributors = get_list_contributors(url)
+    df = get_dataframe_users_averaged_stars(contributors)
+    end = time.time()
+    print("Execution time: " + str(round((end - start)/60)) + " min")
+    df.to_csv("Dataframe_github_256_serial.csv")
